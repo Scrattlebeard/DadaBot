@@ -1,0 +1,11 @@
+﻿{
+    "DiscordSettings": {
+        "Token": "your_token_here",
+        "LogLevel": "Info",
+        "OwnerId": 128524271700934657,
+        "AutoJoin":  true
+    },
+    "SoundSettings": {
+        "PlayLocally":  false
+    }
+}

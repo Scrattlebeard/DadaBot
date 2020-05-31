@@ -1,0 +1,10 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/release/DadaBot.zip
+.vs/
+bin/
+obj/
+*.suo
+*.user
