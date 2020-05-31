@@ -48,6 +48,7 @@ namespace DadaBot.Commands
                 case "exit":
                 {
                     _log.LogMessage(LogLevel.Info, "DadaBot", "Received exit command, terminating main loop. See you next time!", DateTime.Now);
+                    _impl.Disconnect();
                     return true;
                 }
                 case "j":

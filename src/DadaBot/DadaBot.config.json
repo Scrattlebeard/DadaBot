@@ -6,6 +6,10 @@
         "AutoJoin":  true
     },
     "SoundSettings": {
-        "PlayLocally":  false
+        "InputDeviceId": "your_device_id_here",
+        "InputDeviceName": "your_device_name_here",
+        "PlayLocally":  false,
+        "SampleSize": 40,
+        "BufferDurationMs": 2000
     }
 }
