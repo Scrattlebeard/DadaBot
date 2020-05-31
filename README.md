@@ -10,7 +10,7 @@ You are of course also very welcome to clone this repo, build DadaBot yourself a
 DadaBot expects a DadaBot.config.json file to be present in the same directory as the DadaBot.exe file. You will need to change the contents of this file to run DadaBot on your machine. Don't worry, this can be done in a simple text editor such as Notepad.
 
 #### Creating a Discord Bot
-You need to create a Discord Application which DadaBot can log in as. I also highly recommend that you enable Developer Mode in Discord, which will give you easy access to server, channel and user id's. [This](https://github.com/discord-apps/bot-tutorial) guide explains how to do both.
+You need to create a Discord Application which DadaBot can log in as. I also highly recommend that you enable Developer Mode in Discord, which will give you easy access to server, channel and user ids. [This](https://github.com/discord-apps/bot-tutorial) guide explains how to do both.
 
 #### Addding a bot to a server
 You need to go to the OAuth2 management tab of your application to create an authorization url. You can then paste that url into your browser, to complete the process. Section 5 of [This](https://www.writebots.com/discord-bot-token/) guide explains the process in more detail. DadaBot needs the "Connect" and "Speak" permissions under "Voice". If you want to use the Greet command to make DadaBot introduce itself, it will also need the "Send Messages" permission.
