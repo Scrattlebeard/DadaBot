@@ -1,5 +1,4 @@
-﻿using DadaBot.Configuration;
-using NAudio.CoreAudioApi;
+﻿using NAudio.CoreAudioApi;
 using System;
 using System.Linq;
 
@@ -27,6 +26,11 @@ namespace DadaBot.Sound
                     Console.WriteLine($"Could not find device with id {Id}, searching by name {Name} instead...");
 
                     Device = devices.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).FirstOrDefault(dev => dev.FriendlyName.Contains(Name));
+                }
+                catch (System.Runtime.InteropServices.COMException e) when (e.Message.Contains("0x8889000A")) // 0x8889000A = AUDCLNT_E_DEVICE_IN_USE
+                {
+                    Console.WriteLine($"Could not get device with id {Id} since it's marked as being in use. Please try disabling exclusive application access to the device.");
+                    throw;
                 }
             }
 

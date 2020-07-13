@@ -157,7 +157,7 @@ namespace DadaBot.Discord
 
         public DiscordChannel? GetActiveVoiceChannelForUser(ulong userId)
         {
-            var servers = _client.Guilds.Values;
+            var servers = _client.Guilds?.Values ?? new List<DiscordGuild>();
 
             //Check all voice channels on all known servers
             foreach (var server in servers)
@@ -212,7 +212,7 @@ namespace DadaBot.Discord
         public void Disconnect()
         {
             var voiceClient = _client.GetVoiceNext();
-            var currentConnection = voiceClient.GetConnection(_currentServer);
+            var currentConnection = voiceClient?.GetConnection(_currentServer);
 
             _log.LogMessage(LogLevel.Debug, "DadaBot", $"Disconnecting from channel {currentConnection?.Channel.Name ?? "null"} current server {_currentServer?.Name ?? "null"}", DateTime.Now);
 

@@ -44,8 +44,10 @@ namespace DadaBot
 
             _capture = new WasapiLoopbackCapture(_inputDevice)
             {
-                ShareMode = AudioClientShareMode.Shared
+                ShareMode = AudioClientShareMode.Shared              
             };
+
+            log.LogMessage(LogLevel.Debug, "DadaBot - SoundPlayer", $"Initialized WasapiLoopbackCapture for device {_inputDevice.FriendlyName}. ShareMode: {_capture.ShareMode}, State: {_inputDevice.State}", DateTime.UtcNow);
 
             _captureProvider = new WaveInProvider(_capture);
             

@@ -138,7 +138,7 @@ namespace DadaBot.Commands
 
             if (channel == null)
             {
-                return (false, $"I'm sorry, but I couldn't find you anywhere {ctx.User.Username}. Did you join a voice channel yet?");
+                return (false, $"I'm sorry, but I couldn't find you anywhere. Did you join a voice channel yet?");
             }
 
             _log.LogMessage(LogLevel.Debug, "DadaBot", $"Found channel {channel.Name} on server {channel.Guild.Name}.", DateTime.Now);
