@@ -10,7 +10,7 @@ You are of course also very welcome to clone this repo, build DadaBot yourself a
 DadaBot expects a DadaBot.config.json file to be present in the same directory as the DadaBot.exe file. You will need to change the contents of this file to run DadaBot on your machine. Don't worry, this can be done in a simple text editor such as Notepad.
 
 #### Creating a Discord Bot
-You need to create a Discord Application which DadaBot can log in as. I also highly recommend that you enable Developer Mode in Discord, which will give you easy access to server, channel and user ids. [This](https://github.com/discord-apps/bot-tutorial) guide explains how to do both.
+You need to create a Discord Application which DadaBot can log in as. I also highly recommend that you enable Developer Mode in Discord, which will give you easy access to server, channel and user ids. [This](https://github.com/discord-apps/bot-tutorial) guide explains how to do both. Another guide, which also covers adding the bot to a server can be found [Here](https://dsharpplus.github.io/articles/basics/bot_account.html).
 
 #### Addding a bot to a server
 You need to go to the OAuth2 management tab of your application to create an authorization url. You can then paste that url into your browser, to complete the process. Section 5 of [this](https://www.writebots.com/discord-bot-token/) guide explains the process in more detail. DadaBot needs the "Connect" and "Speak" permissions under "Voice". If you want to use the Greet command to make DadaBot introduce itself, it will also need the "Send Messages" permission.
@@ -19,12 +19,12 @@ You need to go to the OAuth2 management tab of your application to create an aut
 - DiscordSettings: Contains settings related to Discord
   - Token: This is the token from Discord Bot you created. It tells DadaBot to connect "as" that bot.
   - LogLevel: Valid values are "Trace", "Debug", "Info", "Warning", "Error" and "Fatal". Change this to "Debug" if you encounter issues and don't know what's wrong.
-  - OwnerId: Add your DiscordId here to tell DadaBot who's the boss. You can get it by right-clicking on yourself after enabling Developer mode.
+  - OwnerId: Add your DiscordId here to tell DadaBot who's the boss. You can get it by right-clicking on yourself after enabling Developer mode on Discord.
   - AutoJoin: This can be true or false. When true, DadaBot will automatically join your current channel when you give it a play command, if it isn't already in a channel. Leave it to false, if you want to manually tell DadaBot where to go all the time.
   
-- SoundSettings: Contains settings related to Audio
-  - InputDeviceId: The device id of the sound device you want to broadcast sound from.
+- SoundSettings: Contains settings related to Audio  
   - InputDeviceName: The name of the device you want to broadcast sound from.
+  - InputDeviceId (optional): The device id of the sound device you want to broadcast sound from.
   - PlayLocally: If this is set to true, DadaBot will both output sound in a channel and on your default output device. Leave it false if you plan to actually be in the DadaBot channel.
   - SampleSize: The size of each audio sample sent to Discord. Valid values are 5, 10, 20, 40 and 60
   - BufferDurationMs: How many milliseconds DadaBot should buffer for before broadcasting. Max buffer size is 5000 ms, so you don't get any benefit from going higher than that.
@@ -51,9 +51,9 @@ You need to go to the OAuth2 management tab of your application to create an aut
 ## Setting up Sound Capture
 First you need to figure out what device you want to capture audio from. This should not be your default device, since that will result in DadaBot capturing sound from itself if you join the channel. I use my Digital Audio output device which isn't connected to anything. Such a device is present on most computers, in my experience.
 
-To find the device id and device name to use in the configuration file, you need to go to the Device Manager in Windows. Just open the Start menu and type "Device Manager" if you're in doubt. Expand the "Audio inputs and outputs", right-click on your desired device and choose "Properties". In the "Details" tab, you can find the Device Id in the Device Instance Path property. It's the part after the last backslash ('\') and probably looks something like the one in the example above. The Device Name can be found in the "Display Name" property in the same place.
+The name of your sound device is what Windows shows you in the Volume Mixer and various other sound setting managers.
 
-After updating the configuration file with the values found, you need to set your desired application(s) to use the output. This can be done by right-clicking on the speaker icon in the task bar and selecting "Open Sound settings". From here, select "App volume and device preferences" under "Advanced sound options". From here, you can change the output of your running applications. Note: Changing the output means that you most likely won't hear anything on your end before DadaBot starts playing.
+After updating the configuration file with the values, you need to set your desired application(s) to use the output. This can be done by right-clicking on the speaker icon in the task bar and selecting "Open Sound settings". From here, select "App volume and device preferences" under "Advanced sound options". From here, you can change the output of your running applications. Note: Changing the output means that you most likely won't hear anything on your end before DadaBot starts playing.
 
 ## Running DadaBot
 Open a Powershell window or Command Prompt in the directory where you extracted the DadaBot.zip. Run DadaBot with the command ".\DadaBot.exe".
