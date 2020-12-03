@@ -4,8 +4,10 @@ using DadaBot.Discord;
 using DadaBot.Sound;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
-using DSharpPlus.EventArgs;
 using DSharpPlus.VoiceNext;
+using Microsoft.Extensions.Logging;
+using NLog;
+using NLog.Extensions.Logging;
 using System;
 using System.ComponentModel.Design;
 using System.Threading.Tasks;
@@ -14,6 +16,8 @@ namespace DadaBot
 {
     public class DadaBot
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private readonly DiscordSettings _discordSettings;
         private readonly SoundSettings _soundSettings;
 
@@ -25,18 +29,30 @@ namespace DadaBot
 
         public async Task Run()
         {
-            using var serviceProvider = new ServiceContainer();
+            using var serviceProvider = new ServiceContainer();            
             
             using var client = GetDiscordClient();
-            serviceProvider.AddService(typeof(DebugLogger), client.DebugLogger);
 
-            using var soundPlayer = new SoundPlayer(new SoundDevice(_soundSettings.InputDeviceId, _soundSettings.InputDeviceName), _soundSettings, client.DebugLogger);
+            if (_discordSettings.LogLevel == "Debug")
+            {
+                try
+                {
+                    SoundDevice.DetectDevices();
+                }
+                catch (Exception e)
+                {
+                    logger.Error(e, "Sound device detection failed: {exception}");
+                        
+                }
+            }
+
+            using var soundPlayer = new SoundPlayer(new SoundDevice(_soundSettings.InputDeviceName, _soundSettings.InputDeviceId), _soundSettings);
             serviceProvider.AddService(typeof(ISoundPlayer), soundPlayer);
 
-            var discordManager = new DiscordManager(client, _discordSettings, client.DebugLogger);
+            var discordManager = new DiscordManager(client, _discordSettings);
             serviceProvider.AddService(typeof(DiscordManager), discordManager);
 
-            var commandImplementations = new CommandImplementations(discordManager, soundPlayer, _discordSettings, client.DebugLogger);
+            var commandImplementations = new CommandImplementations(discordManager, soundPlayer, _discordSettings);
             serviceProvider.AddService(typeof(ICommandImplementations), commandImplementations);                                   
 
             SetupCommands(client, serviceProvider);
@@ -44,28 +60,25 @@ namespace DadaBot
 
             await client.ConnectAsync();
 
-            await Task.Run(() => new ConsoleCommands(commandImplementations, client.DebugLogger).Listen());
+            await Task.Run(() => new ConsoleCommands(commandImplementations).Listen());
         }
 
         private DiscordClient GetDiscordClient()
         {
-            Enum.TryParse(typeof(LogLevel), _discordSettings.LogLevel, true, out var logLevel);
+            Enum.TryParse(typeof(Microsoft.Extensions.Logging.LogLevel), _discordSettings.LogLevel, true, out var logLevel);
+            logLevel ??= Microsoft.Extensions.Logging.LogLevel.Debug;
 
             var conf = new DiscordConfiguration
             {
                 AutoReconnect = true,
                 Token = _discordSettings.Token,
                 TokenType = TokenType.Bot,
-                UseInternalLogHandler = true,
-                LogLevel = (LogLevel?) logLevel ?? LogLevel.Debug
+                LoggerFactory = GetLoggerFactory(),
+                MinimumLogLevel = (Microsoft.Extensions.Logging.LogLevel) logLevel,
+                LogTimestampFormat = "dd MM yyyy - HH:mm:ss.fff"
             };
 
             var client = new DiscordClient(conf);                       
-
-            client.Ready += Client_Ready;
-            client.GuildAvailable += Client_GuildAvailable;
-            client.ClientErrored += Client_ClientError;
-
             return client;
         }
 
@@ -83,9 +96,6 @@ namespace DadaBot
 
             var commands = client.UseCommandsNext(commandConf);
             commands.RegisterCommands<DiscordCommands>();
-
-            commands.CommandExecuted += Client_CommandExecuted;
-            commands.CommandErrored += Client_CommandErrored;
         }
 
         private void SetupVoice(DiscordClient client)
@@ -99,34 +109,9 @@ namespace DadaBot
             client.UseVoiceNext(voiceConf);
         }
 
-        private Task Client_Ready(ReadyEventArgs e)
+        private ILoggerFactory GetLoggerFactory()
         {
-            e.Client.DebugLogger.LogMessage(LogLevel.Info, "DadaBot", "I'm ready to process events.", DateTime.Now);
-            return Task.CompletedTask;
-        }
-
-        private Task Client_GuildAvailable(GuildCreateEventArgs e)
-        {
-            e.Client.DebugLogger.LogMessage(LogLevel.Info, "DadaBot", $"Server found: {e.Guild.Name}", DateTime.Now);
-            return Task.CompletedTask;
-        }
-
-        private Task Client_ClientError(ClientErrorEventArgs e)
-        {
-            e.Client.DebugLogger.LogMessage(LogLevel.Error, "DadaBot", $"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}", DateTime.Now);
-            return Task.CompletedTask;
-        }
-
-        private Task Client_CommandExecuted(CommandExecutionEventArgs e)
-        {            
-            e.Context.Client.DebugLogger.LogMessage(LogLevel.Info, "DadaBot", $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'", DateTime.Now);
-            return Task.CompletedTask;
-        }
-
-        private Task Client_CommandErrored(CommandErrorEventArgs e)
-        {            
-            e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "DadaBot", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"}", DateTime.Now);
-            return Task.CompletedTask;
+            return LoggerFactory.Create(builder => builder.AddNLog());
         }
     }
 }

@@ -1,20 +1,21 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
+using NLog;
 using System.Threading.Tasks;
-using DSharpPlus;
 using System;
 
 namespace DadaBot.Commands
 {
     public class DiscordCommands : BaseCommandModule
     {
+        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
         [Command("Greet"), RequireOwner]
         [Aliases("Sayhi")]
         public async Task Greet(CommandContext ctx, string serverName, string? channelName = null)
         {
             await ctx.TriggerTypingAsync();
-
-            var log = (DebugLogger)ctx.Services.GetService(typeof(DebugLogger));
+            
             var impl = (ICommandImplementations) ctx.Services.GetService(typeof(ICommandImplementations));            
 
             (var res, var output) = await impl.Greet(serverName, channelName);
@@ -23,7 +24,7 @@ namespace DadaBot.Commands
 
             if(!res)
             { 
-                log.LogMessage(LogLevel.Info, "DadaBot", $"Failed to greet server {serverName} in channel {channelName ?? "The system channel"}.", DateTime.Now);
+                _log.Info($"Failed to greet server {serverName} in channel {channelName ?? "The system channel"}.");
             }
         }
 
@@ -31,8 +32,7 @@ namespace DadaBot.Commands
         public async Task Join(CommandContext ctx, string? identifier = null)
         {
             await ctx.TriggerTypingAsync();
-
-            var log = (DebugLogger)ctx.Services.GetService(typeof(DebugLogger));
+            
             var impl = (ICommandImplementations)ctx.Services.GetService(typeof(ICommandImplementations));
 
             if (identifier == null)
@@ -42,7 +42,7 @@ namespace DadaBot.Commands
 
                 if (!res)
                 {
-                    log.LogMessage(LogLevel.Error, "DadaBot", $"Failed to join caller: {output}.", DateTime.Now);
+                    _log.Error($"Failed to join caller: {output}.");
                 }
             }
             else
@@ -52,7 +52,7 @@ namespace DadaBot.Commands
 
                 if (!res)
                 {
-                    log.LogMessage(LogLevel.Info, "DadaBot", $"Could not join channel {identifier}. Output: {output}.", DateTime.Now);
+                    _log.Info($"Could not join channel {identifier}. Output: {output}.");
                 }
             }
         }
@@ -74,8 +74,7 @@ namespace DadaBot.Commands
         {
             await ctx.TriggerTypingAsync();
 
-            var impl = (ICommandImplementations)ctx.Services.GetService(typeof(ICommandImplementations));
-            var log = (DebugLogger)ctx.Services.GetService(typeof(DebugLogger));
+            var impl = (ICommandImplementations)ctx.Services.GetService(typeof(ICommandImplementations));            
 
             var (res, output) = await impl.Play(ctx);
 
@@ -83,7 +82,7 @@ namespace DadaBot.Commands
 
             if(!res)
             {
-                log.LogMessage(LogLevel.Info, "DadaBot", $"Could not start playback: {output}", DateTime.Now);
+                _log.Info($"Could not start playback: {output}");
             }
         }
 

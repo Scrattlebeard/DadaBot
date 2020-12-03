@@ -1,10 +1,11 @@
 ﻿using DadaBot.Configuration;
 using DadaBot.Sound;
-using DSharpPlus;
 using DSharpPlus.VoiceNext;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NLog;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace DadaBot
@@ -17,44 +18,69 @@ namespace DadaBot
 
     public class SoundPlayer : ISoundPlayer, IDisposable
     {
+        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
         private bool _disposing = false;
 
         private readonly SoundSettings _soundSettings;
-        private readonly DebugLogger _log;
         private readonly MMDevice _inputDevice;
-        private readonly WasapiLoopbackCapture _capture;
+        private readonly WasapiCapture _capture;
         private readonly WaveInProvider _captureProvider;
         
         private readonly BufferedWaveProvider _remoteBuffer;
-        private readonly WaveFloatTo16Provider _remoteOutput;
+        private readonly IWaveProvider _remoteOutput;
 
         private readonly BufferedWaveProvider? _localBuffer;
         private WasapiOut? _localOutput;        
 
-        private readonly byte[] buf = new byte[64000];
+        private readonly byte[] buf = new byte[176400];
         private byte[]? streamBuffer;
 
         private bool _playing = false;
 
-        public SoundPlayer(SoundDevice device, SoundSettings settings, DebugLogger log)
-        {
-            _log = log;
+        public SoundPlayer(SoundDevice device, SoundSettings settings)
+        {            
             _soundSettings = settings;
             _inputDevice = device.Device;
 
-            _capture = new WasapiLoopbackCapture(_inputDevice)
+            if (_inputDevice.DataFlow == DataFlow.Render)
             {
-                ShareMode = AudioClientShareMode.Shared              
-            };
+                _capture = new WasapiLoopbackCapture(_inputDevice) { ShareMode = AudioClientShareMode.Shared };                    
 
-            log.LogMessage(LogLevel.Debug, "DadaBot - SoundPlayer", $"Initialized WasapiLoopbackCapture for device {_inputDevice.FriendlyName}. ShareMode: {_capture.ShareMode}, State: {_inputDevice.State}", DateTime.UtcNow);
+                _log.Debug($"Initialized WasapiLoopbackCapture for device {_inputDevice.FriendlyName} of type {_inputDevice.DataFlow}. ShareMode: {_capture.ShareMode}, State: {_inputDevice.State}");
 
-            _captureProvider = new WaveInProvider(_capture);
-            
-            _remoteOutput = new WaveFloatTo16Provider(_captureProvider);
-            _remoteBuffer = new BufferedWaveProvider(_remoteOutput.WaveFormat);
+                _log.Debug($"Capturing in format: {_capture.WaveFormat} {_capture.WaveFormat.BitsPerSample}bit {_capture.WaveFormat.SampleRate}Hz {_capture.WaveFormat.Channels} channels");
 
-            _capture.DataAvailable += (s, e) => { _remoteOutput.Read(buf, 0, e.BytesRecorded/2); _remoteBuffer.AddSamples(buf, 0, e.BytesRecorded/2); };
+                _captureProvider = new WaveInProvider(_capture);
+
+                _remoteOutput = new DefaultResampler(_capture.WaveFormat).Resample(_captureProvider);
+                
+                _remoteBuffer = new BufferedWaveProvider(SoundSettings.DiscordFormat);
+                _capture.DataAvailable += (s, e) => { _remoteOutput.Read(buf, 0, e.BytesRecorded / 2); _remoteBuffer.AddSamples(buf, 0, e.BytesRecorded / 2); };
+            }
+            else
+            {
+                _capture = new WasapiCapture(_inputDevice) { ShareMode = AudioClientShareMode.Shared };
+
+                _log.Debug($"Initialized WasapiCapture for device {_inputDevice.FriendlyName} of type {_inputDevice.DataFlow}. ShareMode: {_capture.ShareMode}, State: {_inputDevice.State}.");
+
+                _log.Debug($"Capturing in format: {_capture.WaveFormat} {_capture.WaveFormat.BitsPerSample}bit {_capture.WaveFormat.SampleRate}Hz {_capture.WaveFormat.Channels} channels");
+
+                _captureProvider = new WaveInProvider(_capture);
+                
+                _remoteOutput = new DefaultResampler(_capture.WaveFormat).Resample(_captureProvider);
+
+                var captureRate = _capture.WaveFormat.AverageBytesPerSecond;
+                var outputRate = SoundSettings.DiscordFormat.AverageBytesPerSecond;
+
+                _log.Info($"Capture rate is {captureRate}, output rate is {outputRate}, that gives a ratio of {(float)captureRate / (float)outputRate}");
+                _log.Debug($"Outputting in format: {_remoteOutput.WaveFormat} {_remoteOutput.WaveFormat.BitsPerSample}bit {_remoteOutput.WaveFormat.SampleRate}Hz {_remoteOutput.WaveFormat.Channels} channels");
+
+                var rate = (float) SoundSettings.DiscordFormat.AverageBytesPerSecond / _capture.WaveFormat.AverageBytesPerSecond;
+
+                _remoteBuffer = new BufferedWaveProvider(_remoteOutput.WaveFormat);
+                _capture.DataAvailable += (s, e) => { _remoteOutput.Read(buf, 0, (int) Math.Round(e.BytesRecorded * rate)); _remoteBuffer.AddSamples(buf, 0, (int)Math.Round(e.BytesRecorded * rate)); };
+            }            
             
             if(_soundSettings.PlayLocally)
             {
@@ -67,17 +93,21 @@ namespace DadaBot
         }
 
         public void Start(VoiceNextConnection voiceStream)
-        {
-            var stream = voiceStream.GetTransmitStream(_soundSettings.SampleSize);
+        {                        
+            try
+            {
+                _capture.StartRecording();
+                _localOutput?.Play();
 
-            var bytesPerSample = _remoteBuffer.BytesPerSample(stream.SampleDuration);
-            streamBuffer = new byte[bytesPerSample];
+                _playing = true;
 
-            _capture.StartRecording();
-            _localOutput?.Play();
-
-            _playing = true;
-            Task.Run(async () => await SendToStream(stream, bytesPerSample));
+                Task.Run(async () => await SendToStream(voiceStream));
+            }
+            catch(Exception e)
+            {
+                _log.Error(e, $"An error occured in the stream task: {e.Message}");
+                Stop();
+            }
         }
 
         public void Stop()
@@ -86,12 +116,17 @@ namespace DadaBot
 
             _capture.StopRecording();
             _localOutput?.Stop();
+            _remoteBuffer.ClearBuffer();
         }
 
-        public async Task SendToStream(VoiceTransmitStream stream, int bytesPerSample)
+        public async Task SendToStream(VoiceNextConnection voiceStream)
         {
             try
-            {
+            {                
+                var sink = voiceStream.GetTransmitSink(_soundSettings.SampleSize);
+                var bytesPerSample = _remoteBuffer.BytesPerSample(sink.SampleDuration);
+                streamBuffer = new byte[bytesPerSample];
+
                 await Task.Delay(_soundSettings.BufferDurationMs);
 
                 while (_playing)
@@ -99,14 +134,15 @@ namespace DadaBot
                     if (_remoteBuffer.BufferedBytes >= bytesPerSample)
                     {
                         _remoteBuffer.Read(streamBuffer, 0, bytesPerSample);
-                        stream.Write(streamBuffer, 0, bytesPerSample);
+                        await sink.WriteAsync(streamBuffer, 0, bytesPerSample);
                     }
                 }
             }
-            finally
+            catch(Exception e)
             {
-                await stream.DisposeAsync();
-            }            
+                _log.Error(e, $"An error occured during transmission to stream: {e.Message}");
+                Stop();
+            }               
         }
 
         public void Dispose()

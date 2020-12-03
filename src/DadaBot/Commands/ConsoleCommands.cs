@@ -1,21 +1,20 @@
-﻿using DSharpPlus;
-using System;
+﻿using System;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Text;
 using System.Linq;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using NLog;
 
 namespace DadaBot.Commands
 {
     public class ConsoleCommands
     {
-        private readonly DebugLogger _log;
+        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
         private readonly ICommandImplementations _impl;
 
-        public ConsoleCommands(ICommandImplementations impl, DebugLogger log)
+        public ConsoleCommands(ICommandImplementations impl)
         {
             _impl = impl;
-            _log = log;
         }
 
         public async Task Listen()
@@ -25,15 +24,23 @@ namespace DadaBot.Commands
                 if (Console.KeyAvailable)
                 {
                     var data = Console.ReadLine();
-                    var words = data.Split(' ');
-                    var command = words[0].ToLower();
-                    var args = words.Skip(1).ToArray();
-                    
-                    var exit = await ExecuteCommand(command, args);
 
-                    if(exit)
+                    try
+                    {                        
+                        var words = data.Split(' ');
+                        var command = words[0].ToLower();
+                        var args = words.Skip(1).ToArray();
+
+                        var exit = await ExecuteCommand(command, args);
+
+                        if (exit)
+                        {
+                            break;
+                        }
+                    }
+                    catch(Exception e)
                     {
-                        break;
+                        Trace.WriteLine($"Failed to execute command: \"{data}\". Error: {e}");
                     }
                 }
 
@@ -47,7 +54,7 @@ namespace DadaBot.Commands
             {
                 case "exit":
                 {
-                    _log.LogMessage(LogLevel.Info, "DadaBot", "Received exit command, terminating main loop. See you next time!", DateTime.Now);
+                    _log.Info("Received exit command, terminating main loop. See you next time!");
                     _impl.Disconnect();
                     return true;
                 }
@@ -105,7 +112,7 @@ namespace DadaBot.Commands
                 }
                 default:
                 {
-                    _log.LogMessage(LogLevel.Info, "DadaBot", $"Unrecognized console command: {command}.", DateTime.Now);
+                    _log.Info("Unrecognized console command: {command}.", command);
                     return false;
                 }
             }
@@ -113,7 +120,7 @@ namespace DadaBot.Commands
 
         private void HandleCommandResult(bool res, string output)
         {
-            _log.LogMessage(LogLevel.Info, "DadaBot", $"{(res ? "Success" : "Failed to execute command")}: {output}", DateTime.Now);
+            _log.Info($"{(res ? "Success" : "Failed to execute command")}: {output}");
         }
     }    
 }

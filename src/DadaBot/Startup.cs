@@ -1,7 +1,8 @@
 ﻿using DadaBot.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using NLog.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -23,13 +24,13 @@ namespace DadaBot
 
             var config = await LoadConfig(configPath);
 
-            if(config == null)
+            if (config == null)
             {
                 throw new Exception($"Could not load configuration file {configPath}");
             }
 
             //Token given in argument overrides config
-            if(token != null)
+            if (token != null)
             {
                 config.DiscordSettings.Token = token;
             }
@@ -38,7 +39,7 @@ namespace DadaBot
 
             Trace.WriteLine("Starting DadaBot...");
 
-            await bot.Run();            
+            await bot.Run();
         }        
 
         private static string? GetArgument(string[] args, string argumentName)

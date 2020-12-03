@@ -4,6 +4,7 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.VoiceNext;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,22 +14,22 @@ namespace DadaBot.Discord
 {
     public class DiscordManager
     {
+        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
         private readonly DiscordClient _client;
-        private readonly DiscordSettings _discordSettings;
-        private readonly DebugLogger _log;
+        private readonly DiscordSettings _discordSettings;        
 
         private DiscordGuild? _currentServer;
 
-        public DiscordManager(DiscordClient client, DiscordSettings discordSettings, DebugLogger log)
+        public DiscordManager(DiscordClient client, DiscordSettings discordSettings)
         {
             _client = client;
             _discordSettings = discordSettings;
-            _log = log;
         }
 
         public DiscordGuild GetServerByName(string serverName)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting server by name {serverName}.", DateTime.Now);
+            _log.Debug("Getting server by name {serverName}.", serverName);
 
             DiscordGuild res;
 
@@ -53,7 +54,7 @@ namespace DadaBot.Discord
 
         public DiscordGuild GetServerById(ulong serverId)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting server by id {serverId}.", DateTime.Now);
+            _log.Debug("Getting server by id {serverId}.", serverId);
 
             if (_client.Guilds.ContainsKey(serverId))
             {
@@ -67,7 +68,7 @@ namespace DadaBot.Discord
 
         public DiscordChannel GetChannelByName(string channelName, DiscordGuild server)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting channel by name {channelName} on server {server.Name}.", DateTime.Now);
+            _log.Debug("Getting channel by name {channelName} on server {serverName}.", channelName, server.Name);
 
             DiscordChannel res;
 
@@ -92,7 +93,7 @@ namespace DadaBot.Discord
 
         public DiscordChannel GetChannelByName(string channelName)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting channel by name {channelName}.", DateTime.Now);
+            _log.Debug("Getting channel by name {channelName}.", channelName);
 
             List<DiscordChannel> res = new List<DiscordChannel>();
 
@@ -116,7 +117,7 @@ namespace DadaBot.Discord
 
         public DiscordChannel GetChannelById(ulong channelId)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting channel by id {channelId}.", DateTime.Now);
+            _log.Debug("Getting channel by id {channelId}.", channelId);
 
             foreach (var server in _client.Guilds.Values)
             {
@@ -131,7 +132,7 @@ namespace DadaBot.Discord
 
         public DiscordChannel GetChannelById(ulong channelId, DiscordGuild server)
         {
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Getting channel by id {channelId} on server {server.Name}.", DateTime.Now);
+            _log.Debug("Getting channel by id {channelId} on server {serverName}.", channelId, server.Name);
 
             if (server.Channels.ContainsKey(channelId))
             {
@@ -190,7 +191,7 @@ namespace DadaBot.Discord
 
             if(currentConnection != null)
             {
-                _log.LogMessage(LogLevel.Info, "DadaBot", $"Already connected to {currentConnection.Channel.Name} on server {_currentServer}. Disconnecting to join {channel.Name} instead.", DateTime.Now);
+                _log.Info("Already connected to {channelName} on server {serverName}. Disconnecting to join {channelName} instead.", currentConnection.TargetChannel.Name, _currentServer?.Name, channel.Name);
                 currentConnection.Disconnect();
             }
 
@@ -211,12 +212,15 @@ namespace DadaBot.Discord
 
         public void Disconnect()
         {
-            var voiceClient = _client.GetVoiceNext();
-            var currentConnection = voiceClient?.GetConnection(_currentServer);
+            if (_currentServer != null)
+            {
+                var voiceClient = _client.GetVoiceNext();
+                var currentConnection = voiceClient?.GetConnection(_currentServer);
 
-            _log.LogMessage(LogLevel.Debug, "DadaBot", $"Disconnecting from channel {currentConnection?.Channel.Name ?? "null"} current server {_currentServer?.Name ?? "null"}", DateTime.Now);
+                _log.Debug("Disconnecting from channel {channelName} current server {serverName}", currentConnection?.TargetChannel.Name ?? "null", _currentServer?.Name ?? "null");
 
-            currentConnection?.Disconnect();
+                currentConnection?.Disconnect();
+            }
         }
 
         public VoiceNextConnection? GetVoiceConnection()
@@ -225,7 +229,7 @@ namespace DadaBot.Discord
 
             if(_currentServer == null || voiceClient.GetConnection(_currentServer) == null)
             {
-                _log.LogMessage(LogLevel.Info, "DadaBot", $"Failed to find voice connection on server {_currentServer?.Name ?? "null"}", DateTime.Now);
+                _log.Info("Failed to find voice connection on server {serverName}", _currentServer?.Name ?? "null");
                 return null;
             }
 
